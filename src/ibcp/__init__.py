@@ -1,4 +1,4 @@
-from .ibcp import REST
+from .ibcp import REST as REST
 
 # Version is managed in pyproject.toml and automatically synced
 __version__ = "0.0.3"

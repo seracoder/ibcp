@@ -6,10 +6,11 @@ Reference for ibcp.REST class.
 
 Account info
 -----------------
+.. automethod:: REST.set_default_account
 .. automethod:: REST.get_accounts
 .. automethod:: REST.switch_account
 .. automethod:: REST.get_portfolio
-.. automethod:: REST.get_cash
+.. automethod:: REST.get_cash_balance
 .. automethod:: REST.get_netvalue
 
 Instrument info
@@ -17,6 +18,8 @@ Instrument info
 .. automethod:: REST.get_conid
 .. automethod:: REST.get_fut_conids
 .. automethod:: REST.get_bars
+.. automethod:: REST.get_marketdata_snapshot
+.. automethod:: REST.get_stock_last_price
 
 
 Orders

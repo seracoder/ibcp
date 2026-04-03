@@ -1,22 +1,30 @@
+import asyncio
+
 import ibcp
-import time
 from datetime import datetime
 
 """ This script pings the server every 5 minutes and tries to reauthenticate in case it looses it."""
 
 
-if __name__ == "__main__":
+async def main():
 
     sleep_interval = 60 * 5
     api = ibcp.REST()
+    await api.set_default_account()
 
-    while True:
+    try:
+        while True:
+            status = await api.ping_server()
+            if not status["iserver"]["authStatus"]["authenticated"]:
+                await api.re_authenticate()
+                await asyncio.sleep(5)
+                status = await api.get_auth_status()
+                now = datetime.now()
+                print(now.strftime("%Y/%m/%d %H:%M:%S") + "  " + str(status))
+            await asyncio.sleep(sleep_interval)
+    finally:
+        await api.close()
 
-        status = api.ping_server()
-        if status["iserver"]["authStatus"]["authenticated"] == False:
-            api.re_authenticate()
-            time.sleep(5)
-            status = api.get_auth_status()
-            now = datetime.now()
-            print(now.strftime("%Y/%m/%d %H:%M:%S") + "  " + str(status))
-        time.sleep(sleep_interval)
+
+if __name__ == "__main__":
+    asyncio.run(main())
