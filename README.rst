@@ -53,39 +53,47 @@ Usage
 
 .. code-block:: python
 
+   import asyncio
    import ibcp
 
-   ib = ibcp.REST() # default parameters: url="https://localhost:5000", ssl=False
+   async def main():
+       # default parameters: url="https://localhost:5000", ssl=False
+       ib = ibcp.REST()
+       await ib.set_default_account()
 
-   # Get account information
-   account = ib.get_account()
+       # Get account information
+       account = await ib.get_accounts()
 
-   # Get portfolio
-   portfolio = ib.get_portfolio()
+       # Get portfolio
+       portfolio = await ib.get_portfolio()
 
-   # Get positions
-   positions = ib.get_positions()
+       # Get cash balance
+       balance = await ib.get_cash_balance()
 
-   # Get orders
-   orders = ib.get_orders()
+       # Get net value
+       net_value = await ib.get_netvalue()
 
-   # Get trades
-   trades = ib.get_trades()
+       # Get market data
+       bars = await ib.get_bars("AAPL")
 
-   # Get market data
-   market_data = ib.get_market_data("AAPL")
+       # Get contract ID
+       conid = await ib.get_conid("AAPL")
 
-   # Place order
-   order = ib.place_order({
-       "symbol": "AAPL",
-       "secType": "STK",
-       "currency": "USD",
-       "exchange": "SMART",
-       "tif": "DAY",
-       "side": "BUY",
-       "totalQuantity": 100,
-       "orderType": "MKT"
-   })
+       # Place order
+       orders = [
+           {
+               "conid": conid,
+               "orderType": "MKT",
+               "side": "BUY",
+               "quantity": 100,
+               "tif": "DAY",
+           }
+       ]
+       result = await ib.submit_orders(orders)
+
+       await ib.close()
+
+   asyncio.run(main())
 
 For the complete reference, please visit https://ibcp.readthedocs.io/en/latest/reference.html.
 
@@ -96,7 +104,10 @@ By default, IBCP assumes the gateway session is open at https://localhost:5000 w
 
 .. code-block:: python
 
-   ib = ibcp.REST(url="https://localhost:5000", ssl=False)
+   async with ibcp.REST(url="https://localhost:5000", ssl=False) as ib:
+       await ib.set_default_account()
+       # ... async calls
+       pass
 
 Documentation of available functions is at https://ibcp.readthedocs.io/en/latest/reference.html.
 
