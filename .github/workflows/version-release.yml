@@ -97,7 +97,7 @@ jobs:
             
             ### Installation
             ```bash
-            pip install ibcp==${{ needs.check-version.outputs.version }}
+            pip install ibcp==${{ needs.check-version.outputs.version }} --index-url https://pypi.pkg.github.com/seracoder
             ```
           files: |
             dist/ibcp-${{ needs.check-version.outputs.version }}.tar.gz
