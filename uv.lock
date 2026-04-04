@@ -103,14 +103,18 @@ version = "0.0.3"
 source = { editable = "." }
 dependencies = [
     { name = "httpx", extra = ["http2"] },
+]
+
+[package.dev-dependencies]
+dev = [
     { name = "ruff" },
 ]
 
 [package.metadata]
-requires-dist = [
-    { name = "httpx", extras = ["http2"], specifier = ">=0.28.1" },
-    { name = "ruff", specifier = ">=0.15.9" },
-]
+requires-dist = [{ name = "httpx", extras = ["http2"], specifier = ">=0.28.1" }]
+
+[package.metadata.requires-dev]
+dev = [{ name = "ruff", specifier = ">=0.15.9" }]
 
 [[package]]
 name = "idna"
