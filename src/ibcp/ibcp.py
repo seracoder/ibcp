@@ -2,6 +2,30 @@ import asyncio
 
 import httpx
 
+from ibcp.models import (
+    Account,
+    AuthStatusResponse,
+    CancelOrderResponse,
+    CashBalanceResponse,
+    CurrencyValue,
+    FuturesContract,
+    LiveOrder,
+    LiveOrdersResponse,
+    LogoutResponse,
+    MarketDataSnapshot,
+    MarketHistoryResponse,
+    NetValueResponse,
+    OrderConfirmationMessage,
+    OrderReplyItem,
+    OrderStatus,
+    PortfolioPosition,
+    PortfolioResponse,
+    ReauthenticateResponse,
+    StockInstrument,
+    SwitchAccountResponse,
+    TickleResponse,
+)
+
 __all__ = ["REST"]
 
 
@@ -67,33 +91,35 @@ class REST:
             self._account_id = account_id
         else:
             accounts = await self.get_accounts()
-            self._account_id = accounts[0]["accountId"]
+            self._account_id = accounts[0].account_id
         return self._account_id
 
-    async def get_accounts(self) -> list:
+    async def get_accounts(self) -> list[Account]:
         """Returns account info
 
         :return: list of account info
-        :rtype: list
+        :rtype: list[Account]
         """
         response = await self.client.get(f"{self.url}/portfolio/accounts")
-        return response.json()
+        return [Account(**item) for item in response.json()]
 
-    async def switch_account(self, account_id: str) -> dict:
+    async def switch_account(self, account_id: str) -> SwitchAccountResponse:
         """Switch selected account to the input account
 
         :param account_id: account ID of the desired account
         :type account_id: str
         :return: Response from the server
-        :rtype: dict
+        :rtype: SwitchAccountResponse
         """
         response = await self.client.post(
             f"{self.url}/iserver/account", json={"acctId": account_id}
         )
         self._account_id = account_id
-        return response.json()
+        return SwitchAccountResponse(**response.json())
 
-    async def get_cash_balance(self, account_id=None, currency=None) -> dict:
+    async def get_cash_balance(
+        self, account_id=None, currency=None
+    ) -> CashBalanceResponse:
         """Returns cash balance of the selected account
 
         :param account_id: Account ID, uses default if not provided
@@ -101,16 +127,24 @@ class REST:
         :param currency: Currency to return
         :type currency: str, optional
         :return: dict of cash balance
-        :rtype: dict
+        :rtype: CashBalanceResponse
         """
         aid = self._require_account_id(account_id)
         response = await self.client.get(f"{self.url}/portfolio/{aid}/ledger")
         body = response.json()
 
+        items: list[CurrencyValue] = []
         if currency:
-            return {currency: body[currency]["cashbalance"]}
-
-        return {key: item["cashbalance"] for key, item in body.items() if key != "BASE"}
+            items.append(
+                CurrencyValue(currency=currency, value=body[currency]["cashbalance"])
+            )
+        else:
+            items = [
+                CurrencyValue(currency=key, value=item["cashbalance"])
+                for key, item in body.items()
+                if key != "BASE"
+            ]
+        return CashBalanceResponse(items=items)
 
     async def get_stock_last_price(
         self,
@@ -138,14 +172,14 @@ class REST:
                 response = await self.get_marketdata_snapshot(
                     ticker, conid, contract_filters=contract_filters
                 )
-                price = response[0]["31"]
+                price = response[0].model_extra["31"]
             except Exception:
                 print(f"Waiting for {ticker} price")
                 await asyncio.sleep(0.5)
 
         return float(price.replace("C", ""))
 
-    async def get_netvalue(self, account_id=None, currency=None) -> dict:
+    async def get_netvalue(self, account_id=None, currency=None) -> NetValueResponse:
         """Returns net value of the selected account
 
         :param account_id: Account ID, uses default if not provided
@@ -153,20 +187,26 @@ class REST:
         :param currency: Currency to return
         :type currency: str, optional
         :return: Net value of the selected account
-        :rtype: dict
+        :rtype: NetValueResponse
         """
         aid = self._require_account_id(account_id)
         response = await self.client.get(f"{self.url}/portfolio/{aid}/ledger")
         body = response.json()
 
+        items: list[CurrencyValue] = []
         if currency:
-            return {currency: body[currency]["netliquidationvalue"]}
-
-        return {
-            key: item["netliquidationvalue"]
-            for key, item in body.items()
-            if key != "BASE"
-        }
+            items.append(
+                CurrencyValue(
+                    currency=currency, value=body[currency]["netliquidationvalue"]
+                )
+            )
+        else:
+            items = [
+                CurrencyValue(currency=key, value=item["netliquidationvalue"])
+                for key, item in body.items()
+                if key != "BASE"
+            ]
+        return NetValueResponse(items=items)
 
     async def get_conid(
         self,
@@ -191,7 +231,7 @@ class REST:
         response = await self.client.get(
             f"{self.url}/trsrv/stocks", params={"symbols": symbol}
         )
-        instruments = response.json()
+        instruments_data = response.json()
 
         if instrument_filters or contract_filters:
 
@@ -209,53 +249,77 @@ class REST:
                     ]
                 return len(instrument["contracts"]) > 0
 
-            instruments[symbol] = list(filter(filter_instrument, instruments[symbol]))
+            instruments_data[symbol] = list(
+                filter(filter_instrument, instruments_data[symbol])
+            )
 
-        return instruments[symbol][0]["contracts"][0]["conid"]
+        instrument = StockInstrument(**instruments_data[symbol][0])
+        return instrument.contracts[0].conid
 
-    async def get_portfolio(self, account_id=None) -> dict:
+    async def get_portfolio(self, account_id=None) -> PortfolioResponse:
         """Returns portfolio of the selected account
 
         :param account_id: Account ID, uses default if not provided
         :type account_id: str, optional
         :return: Portfolio
-        :rtype: dict
+        :rtype: PortfolioResponse
         """
         aid = self._require_account_id(account_id)
         response = await self.client.get(f"{self.url}/portfolio/{aid}/positions/0")
 
-        result = {item["contractDesc"]: item["position"] for item in response.json()}
-        result["balance"] = await self.get_cash_balance(account_id=aid)
-        return result
+        positions = [
+            PortfolioPosition(
+                contract_desc=item["contractDesc"], position=item["position"]
+            )
+            for item in response.json()
+        ]
+        balance = await self.get_cash_balance(account_id=aid)
+        return PortfolioResponse(positions=positions, balance=balance)
 
-    async def reply_yes(self, message_id: str) -> dict:
+    async def reply_yes(
+        self, message_id: str
+    ) -> OrderReplyItem | OrderConfirmationMessage:
         """Replies yes to a single message generated while submitting or modifying orders.
 
         :param message_id: message ID
         :type message_id: str
         :return: Returned message
-        :rtype: dict
+        :rtype: OrderReplyItem | OrderConfirmationMessage
         """
         response = await self.client.post(
             f"{self.url}/iserver/reply/{message_id}", json={"confirmed": True}
         )
         data = response.json()
         print(data)
-        return data[0]
+        return self._parse_order_response(data[0])
 
-    async def _reply_all_yes(self, response, reply_yes_to_all: bool) -> dict:
+    def _parse_order_response(
+        self, data: dict
+    ) -> OrderReplyItem | OrderConfirmationMessage:
+        """Parse order response into appropriate model."""
+        if "id" in data and "message" in data:
+            return OrderConfirmationMessage(**data)
+        else:
+            return OrderReplyItem(**data)
+
+    async def _reply_all_yes(
+        self, response, reply_yes_to_all: bool
+    ) -> OrderReplyItem | OrderConfirmationMessage:
         """Replies yes to consecutive messages generated while submitting or modifying orders."""
-        result = response.json()[0]
+        result = self._parse_order_response(response.json()[0])
         if reply_yes_to_all:
-            while "order_id" not in result:
+            while not isinstance(result, OrderReplyItem):
                 print("Answering yes to ...")
-                print(result["message"])
-                result = await self.reply_yes(result["id"])
+                if isinstance(result, OrderConfirmationMessage):
+                    print(result.message)
+                    result = await self.reply_yes(result.id)
+                else:
+                    break
         return result
 
     async def submit_orders(
         self, orders: list, account_id=None, reply_yes=True
-    ) -> dict:
+    ) -> OrderReplyItem | OrderConfirmationMessage:
         """Submit a list of orders
 
         :param orders: List of order dictionaries. For each order dictionary, see `here <https://www.interactivebrokers.com/api/doc.html#tag/Order/paths/~1iserver~1account~1{accountId}~1orders/post>`_ for more details.
@@ -265,7 +329,7 @@ class REST:
         :param reply_yes: Replies yes to returning messages or not, defaults to True
         :type reply_yes: bool, optional
         :return: Response to the order request
-        :rtype: dict
+        :rtype: OrderReplyItem | OrderConfirmationMessage
         """
         aid = self._require_account_id(account_id)
         response = await self.client.post(
@@ -279,34 +343,38 @@ class REST:
 
         return await self._reply_all_yes(response, reply_yes)
 
-    async def get_order(self, order_id: str) -> dict:
+    async def get_order(self, order_id: str) -> OrderStatus:
         """Returns details of the order
 
         :param order_id: Order ID of the submitted order
         :type order_id: str
         :return: Details of the order
-        :rtype: dict
+        :rtype: OrderStatus
         """
         response = await self.client.get(
             f"{self.url}/iserver/account/order/status/{order_id}"
         )
-        return response.json()
+        return OrderStatus(**response.json())
 
-    async def get_live_orders(self, filters=None) -> dict:
+    async def get_live_orders(self, filters=None) -> LiveOrdersResponse:
         """Returns list of live orders
 
         :param filters: List of filters for the returning response. Available items -- "inactive" "pending_submit" "pre_submitted" "submitted" "filled" "pending_cancel" "cancelled" "warn_state" "sort_by_time", defaults to []
         :type filters: list, optional
         :return: list of live orders
-        :rtype: dict
+        :rtype: LiveOrdersResponse
         """
         response = await self.client.get(
             f"{self.url}/iserver/account/orders",
             params={"filters": filters or []},
         )
-        return response.json()
+        data = response.json()
+        return LiveOrdersResponse(
+            orders=[LiveOrder(**item) for item in data.get("orders", [])],
+            snapshot=data.get("snapshot", True),
+        )
 
-    async def cancel_order(self, order_id: str, account_id=None) -> dict:
+    async def cancel_order(self, order_id: str, account_id=None) -> CancelOrderResponse:
         """Cancel the submitted order
 
         :param order_id: Order ID for the input order
@@ -314,17 +382,17 @@ class REST:
         :param account_id: Account ID, uses default if not provided
         :type account_id: str, optional
         :return: Response from the server
-        :rtype: dict
+        :rtype: CancelOrderResponse
         """
         aid = self._require_account_id(account_id)
         response = await self.client.delete(
             f"{self.url}/iserver/account/{aid}/order/{order_id}"
         )
-        return response.json()
+        return CancelOrderResponse(**response.json())
 
     async def modify_order(
         self, order_id=None, order=None, account_id=None, reply_yes=True
-    ) -> dict:
+    ) -> OrderReplyItem | OrderConfirmationMessage:
         """Modify submitted order
 
         :param order_id: Order ID of the submitted order, defaults to None
@@ -336,7 +404,7 @@ class REST:
         :param reply_yes: Replies yes to the returning messages, defaults to True
         :type reply_yes: bool, optional
         :return: Response from the server
-        :rtype: dict
+        :rtype: OrderReplyItem | OrderConfirmationMessage
         """
         if order_id is None or order is None:
             raise ValueError("Input parameters (order_id or order) are missing")
@@ -348,32 +416,34 @@ class REST:
         )
         return await self._reply_all_yes(response, reply_yes)
 
-    async def ping_server(self) -> dict:
+    async def ping_server(self) -> TickleResponse:
         """Tickle server for maintaining connection
 
         :return: Response from the server
-        :rtype: dict
+        :rtype: TickleResponse
         """
         response = await self.client.post(f"{self.url}/tickle")
-        return response.json()
+        return TickleResponse(**response.json())
 
-    async def get_auth_status(self) -> dict:
+    async def get_auth_status(self) -> AuthStatusResponse:
         """Returns authentication status
 
         :return: Status dictionary
-        :rtype: dict
+        :rtype: AuthStatusResponse
         """
         response = await self.client.post(f"{self.url}/iserver/auth/status")
-        return response.json()
+        return AuthStatusResponse(**response.json())
 
-    async def re_authenticate(self) -> None:
+    async def re_authenticate(self) -> ReauthenticateResponse:
         """Attempts to re-authenticate when authentication is lost"""
-        await self.client.post(f"{self.url}/iserver/reauthenticate")
+        response = await self.client.post(f"{self.url}/iserver/reauthenticate")
         print("Reauthenticating ...")
+        return ReauthenticateResponse(**response.json())
 
-    async def log_out(self) -> None:
+    async def log_out(self) -> LogoutResponse:
         """Log out from the gateway session"""
-        await self.client.post(f"{self.url}/logout")
+        response = await self.client.post(f"{self.url}/logout")
+        return LogoutResponse(**response.json())
 
     async def get_bars(
         self,
@@ -382,7 +452,7 @@ class REST:
         bar="1d",
         outside_rth=False,
         conid: str | int = "default",
-    ) -> dict:
+    ) -> MarketHistoryResponse:
         """Returns market history for the given instrument. conid should be provided for futures and options.
 
         :param symbol: Symbol of the stock instrument
@@ -396,7 +466,7 @@ class REST:
         :param conid: conid should be provided separately for futures or options. If not provided, it is assumed to be a stock.
         :type conid: str or int, optional
         :return: Response from the server
-        :rtype: dict
+        :rtype: MarketHistoryResponse
         """
         if conid == "default":
             conid = await self.get_conid(symbol)
@@ -410,27 +480,28 @@ class REST:
                 "outsideRth": outside_rth,
             },
         )
-        return response.json()
+        return MarketHistoryResponse(**response.json())
 
-    async def get_fut_conids(self, symbol: str) -> list:
+    async def get_fut_conids(self, symbol: str) -> list[FuturesContract]:
         """Returns list of contract id objects of a future instrument.
 
         :param symbol: symbol of a future instrument
         :type symbol: str
         :return: list of contract id objects
-        :rtype: list
+        :rtype: list[FuturesContract]
         """
         response = await self.client.get(
             f"{self.url}/trsrv/futures", params={"symbols": symbol}
         )
-        return response.json()[symbol]
+        data = response.json()
+        return [FuturesContract(**item) for item in data[symbol]]
 
     async def get_marketdata_snapshot(
         self,
         symbol: str,
         conid: str | int = "default",
         contract_filters=None,
-    ) -> dict:
+    ) -> list[MarketDataSnapshot]:
         """Returns market data snapshot for the given instrument. conid should be provided for futures and options.
 
         :param symbol: Symbol of the stock instrument
@@ -440,7 +511,7 @@ class REST:
         :param contract_filters: Key-value pair of filters, defaults to {"isUS": True}
         :type contract_filters: dict, optional
         :return: Response from the server
-        :rtype: dict
+        :rtype: list[MarketDataSnapshot]
         """
         if contract_filters is None:
             contract_filters = {"isUS": True}
@@ -451,4 +522,4 @@ class REST:
             f"{self.url}/iserver/marketdata/snapshot",
             params={"conids": conid, "fields": "31"},
         )
-        return response.json()
+        return [MarketDataSnapshot(**item) for item in response.json()]

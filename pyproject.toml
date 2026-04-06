@@ -24,7 +24,8 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
 ]
 dependencies = [
-    "httpx[http2]>=0.28.1"
+    "httpx[http2]>=0.28.1",
+    "pydantic>=2.10.0"
 ]
 
 [dependency-groups]
