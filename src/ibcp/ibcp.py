@@ -97,7 +97,7 @@ class REST:
 
     async def get_user(self) -> User:
         """Returns user info"""
-        response = await self.client.get(f"{self.url}/v1/api/one/user")
+        response = await self.client.get(f"{self.url}/one/user")
         return User(**response.json())
 
     async def get_accounts(self) -> list[Account]:
