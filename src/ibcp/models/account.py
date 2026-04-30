@@ -8,7 +8,9 @@ class ParentInfo(BaseModel):
     is_m_child: bool = Field(False, alias="isMChild")
     is_multiplex: bool = Field(False, alias="isMultiplex")
 
-    model_config = {"extra": "allow", "populate_by_name": True}
+    class Config:
+        extra = "allow"
+        populate_by_name = True
 
 
 class Account(BaseModel):
@@ -35,11 +37,14 @@ class Account(BaseModel):
     prepaid_crypto_p: bool = Field(False, alias="PrepaidCrypto-P")
     brokerage_access: bool = Field(..., alias="brokerageAccess")
 
-    model_config = {"extra": "allow", "populate_by_name": True}
+    class Config:
+        extra = "allow"
+        populate_by_name = True
 
 
 class SwitchAccountResponse(BaseModel):
-    set: bool
-    acct_id: str = Field(..., alias="acctId")
+    success: str | None = None
 
-    model_config = {"extra": "allow", "populate_by_name": True}
+    class Config:
+        extra = "allow"
+        populate_by_name = True

@@ -9,13 +9,13 @@ from datetime import datetime
 async def main():
 
     sleep_interval = 60 * 5
-    api = ibcp.REST()
+    api = ibcp.REST(url="http://localhost:5001")
     await api.set_default_account()
 
     try:
         while True:
             status = await api.ping_server()
-            if not status["iserver"]["authStatus"]["authenticated"]:
+            if not status.iserver.auth_status.authenticated:
                 await api.re_authenticate()
                 await asyncio.sleep(5)
                 status = await api.get_auth_status()

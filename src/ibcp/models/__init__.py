@@ -33,6 +33,10 @@ from .portfolio import (
     Position,
 )
 
+from .user import (
+    User
+)
+
 __all__ = [
     "Account",
     "ParentInfo",
@@ -68,4 +72,5 @@ __all__ = [
     "PortfolioPosition",
     "PortfolioResponse",
     "Position",
+    "User"
 ]

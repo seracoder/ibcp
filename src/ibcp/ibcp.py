@@ -24,6 +24,7 @@ from ibcp.models import (
     StockInstrument,
     SwitchAccountResponse,
     TickleResponse,
+    User
 )
 
 __all__ = ["REST"]
@@ -93,6 +94,11 @@ class REST:
             accounts = await self.get_accounts()
             self._account_id = accounts[0].account_id
         return self._account_id
+
+    async def get_user(self) -> User:
+        """Returns user info"""
+        response = await self.client.get(f"{self.url}/v1/api/one/user")
+        return User(**response.json())
 
     async def get_accounts(self) -> list[Account]:
         """Returns account info

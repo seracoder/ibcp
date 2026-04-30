@@ -6,7 +6,9 @@ class StockContract(BaseModel):
     exchange: str
     is_us: bool = Field(..., alias="isUS")
 
-    model_config = {"extra": "allow", "populate_by_name": True}
+    class Config:
+        extra = "allow"
+        populate_by_name = True
 
 
 class StockInstrument(BaseModel):
@@ -15,7 +17,9 @@ class StockInstrument(BaseModel):
     asset_class: str = Field(..., alias="assetClass")
     contracts: list[StockContract]
 
-    model_config = {"extra": "allow", "populate_by_name": True}
+    class Config:
+        extra = "allow"
+        populate_by_name = True
 
 
 class FuturesContract(BaseModel):
@@ -27,4 +31,6 @@ class FuturesContract(BaseModel):
     short_futures_cut_off: int = Field(..., alias="shortFuturesCutOff")
     long_futures_cut_off: int = Field(..., alias="longFuturesCutOff")
 
-    model_config = {"extra": "allow", "populate_by_name": True}
+    class Config:
+        extra = "allow"
+        populate_by_name = True

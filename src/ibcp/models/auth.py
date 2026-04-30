@@ -5,7 +5,9 @@ class ServerInfo(BaseModel):
     server_name: str | None = Field(None, alias="serverName")
     server_version: str | None = Field(None, alias="serverVersion")
 
-    model_config = {"extra": "allow", "populate_by_name": True}
+    class Config:
+        extra = "allow"
+        populate_by_name = True
 
 
 class AuthStatus(BaseModel):
@@ -18,19 +20,25 @@ class AuthStatus(BaseModel):
     hardware_info: str | None = Field(None, alias="hardware_info")
     fail: str = ""
 
-    model_config = {"extra": "allow", "populate_by_name": True}
+    class Config:
+        extra = "allow"
+        populate_by_name = True
 
 
 class HmdsInfo(BaseModel):
     error: str | None = None
 
-    model_config = {"extra": "allow", "populate_by_name": True}
+    class Config:
+        extra = "allow"
+        populate_by_name = True
 
 
 class IserverInfo(BaseModel):
     auth_status: AuthStatus = Field(..., alias="authStatus")
 
-    model_config = {"extra": "allow", "populate_by_name": True}
+    class Config:
+        extra = "allow"
+        populate_by_name = True
 
 
 class TickleResponse(BaseModel):
@@ -41,7 +49,9 @@ class TickleResponse(BaseModel):
     hmds: HmdsInfo | None = None
     iserver: IserverInfo | None = None
 
-    model_config = {"extra": "allow", "populate_by_name": True}
+    class Config:
+        extra = "allow"
+        populate_by_name = True
 
 
 class AuthStatusResponse(AuthStatus):
@@ -51,10 +61,14 @@ class AuthStatusResponse(AuthStatus):
 class ReauthenticateResponse(BaseModel):
     message: str
 
-    model_config = {"extra": "allow", "populate_by_name": True}
+    class Config:
+        extra = "allow"
+        populate_by_name = True
 
 
 class LogoutResponse(BaseModel):
     status: bool
 
-    model_config = {"extra": "allow", "populate_by_name": True}
+    class Config:
+        extra = "allow"
+        populate_by_name = True

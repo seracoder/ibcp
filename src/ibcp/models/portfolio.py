@@ -33,7 +33,9 @@ class LedgerEntry(BaseModel):
     endofbundle: int = 0
     dividends: float = 0.0
 
-    model_config = {"extra": "allow", "populate_by_name": True}
+    class Config:
+        extra = "allow"
+        populate_by_name = True
 
 
 class CurrencyValue(BaseModel):
@@ -53,7 +55,9 @@ class IncrementRule(BaseModel):
     lower_edge: float = 0.0
     increment: float = 0.0
 
-    model_config = {"extra": "allow", "populate_by_name": True}
+    class Config:
+        extra = "allow"
+        populate_by_name = True
 
 
 class DisplayRuleStep(BaseModel):
@@ -61,14 +65,18 @@ class DisplayRuleStep(BaseModel):
     lower_edge: float = 0.0
     whole_digits: int = 0
 
-    model_config = {"extra": "allow", "populate_by_name": True}
+    class Config:
+        extra = "allow"
+        populate_by_name = True
 
 
 class DisplayRule(BaseModel):
     magnification: int = 0
     display_rule_step: list[DisplayRuleStep] = Field(default_factory=list)
 
-    model_config = {"extra": "allow", "populate_by_name": True}
+    class Config:
+        extra = "allow"
+        populate_by_name = True
 
 
 class Position(BaseModel):
@@ -115,7 +123,9 @@ class Position(BaseModel):
     )
     display_rule: DisplayRule | None = Field(None, alias="displayRule")
 
-    model_config = {"extra": "allow", "populate_by_name": True}
+    class Config:
+        extra = "allow"
+        populate_by_name = True
 
 
 class PortfolioPosition(BaseModel):

@@ -3,19 +3,19 @@
 
 import asyncio
 
-import ibcp
+import src.ibcp as ibcp
 
 
 async def main():
     # Create a REST client
-    api = ibcp.REST()
+    api = ibcp.REST(url="http://localhost:5001")
     await api.set_default_account()
-    # default parameters: url="https://localhost:5000", ssl=False
+    # default parameters: url="http://localhost:5000", ssl=False
     # SSL warnings can be suppressed by setting up a SSL certificate
 
     # Example: Get historical data
-    # bars = (await api.get_bars("TSLA"))["data"]
-    # print(bars)
+    bars = (await api.get_bars("TSLA")).data
+    print(bars)
 
     # Example: Submit orders
     # orders = [
