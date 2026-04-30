@@ -85,7 +85,7 @@ class Feature(BaseModel):
     bond: bool
     optionChains: bool
     calendar: bool
-    newMF: bool
+    newMf: bool
 
 
 class UAR(BaseModel):
