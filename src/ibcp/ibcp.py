@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from typing import Any, Union
+from typing import Any, Union, Optional
 
 import httpx
 
@@ -82,16 +82,18 @@ class REST(DataExtractor):
     :type ssl: bool, optional
     """
 
-    def __init__(self, url="https://localhost:5000", ssl=False) -> None:
+    def __init__(self, url="https://localhost:5000", ssl=False, account_id: Optional[str] = None) -> None:
         """Create a new instance to interact with REST API
 
         :param url: Gateway session link, defaults to "https://localhost:5000"
         :type url: str, optional
         :param ssl: Usage of SSL certificate, defaults to False
         :type ssl: bool, optional
+        :param account_id: Optional default account ID to use for requests that require an account ID. If not provided, the client will attempt to fetch accounts and use the first one when needed.
+        :type account_id: str, optional
         """
         self.url = f"{url}/v1/api"
-        self._account_id = None
+        self._account_id = account_id
         self._client = httpx.AsyncClient(verify=ssl, http2=True)
 
     async def __aenter__(self):
@@ -350,7 +352,6 @@ class REST(DataExtractor):
         )
 
         data: dict[SummaryKeys, dict] = response.json()
-
         return Summary(
             # --- Identity ---
             account_code=self._get_value(data, "accountcode"),
@@ -373,7 +374,7 @@ class REST(DataExtractor):
             buying_power=self._extract_suffixed(data, "buyingpower"),
             available_funds=self._extract_suffixed(data, "availablefunds"),
             excess_liquidity=self._extract_suffixed(data, "excessliquidity"),
-            cushion=_parse_float(_get_value(data, "cushion")),
+            cushion=self._get_value(data, "cushion"),
 
             # --- Margin ---
             initial_margin_requirement=self._extract_suffixed(data, "initmarginreq"),
@@ -388,8 +389,8 @@ class REST(DataExtractor):
             regt_margin=self._extract_suffixed(data, "regtmargin"),
 
             # --- Risk ---
-            day_trades_remaining=_parse_int(_get_value(data, "daytradesremaining")),
-            leverage=_parse_float(_get_value(data, "leverage-s")),
+            day_trades_remaining=self._get_value(data, "daytradesremaining"),
+            leverage=self._get_value(data, "leverage-s"),
 
             # --- Lookahead ---
             lookahead_available_funds=self._extract_suffixed(data, "lookaheadavailablefunds"),

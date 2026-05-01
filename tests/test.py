@@ -6,7 +6,7 @@ from ibcp import REST
 
 @pytest_asyncio.fixture
 async def api():
-    client = REST(url="http://localhost:5000")
+    client = REST(url="https://localhost:5000", account_id="DUP340887")
     yield client
     await client.close()
 
@@ -18,6 +18,12 @@ async def account_id(api):
     aid = accounts[0].account_id
     await api.set_default_account()
     return aid
+
+
+@pytest.mark.asyncio
+async def test_summary(api):
+    result = await api.get_portfolio_summary()
+    assert result.account_code != ""
 
 
 @pytest.mark.asyncio
@@ -76,7 +82,7 @@ async def test_get_netvalue_usd(api, account_id):
 @pytest.mark.asyncio
 async def test_get_portfolio(api, account_id):
     result = await api.get_portfolio()
-    assert result.balance is not None
+    assert result.acct_id != ""
 
 
 @pytest.mark.asyncio
