@@ -1,4 +1,6 @@
 import asyncio
+import logging
+from typing import Any, Union
 
 import httpx
 
@@ -18,8 +20,10 @@ from ibcp.models import (
     OrderConfirmationMessage,
     OrderReplyItem,
     OrderStatus,
-    PortfolioPosition,
-    PortfolioResponse,
+    Position,
+    Summary,
+    SummaryKeys,
+    SummarySuffixed,
     ReauthenticateResponse,
     StockInstrument,
     SwitchAccountResponse,
@@ -30,7 +34,46 @@ from ibcp.models import (
 __all__ = ["REST"]
 
 
-class REST:
+class DataExtractor:
+    @staticmethod
+    def _get_value(data: dict[SummaryKeys, Any], key: SummaryKeys) -> Union[str, int, float, bool, dict, None]:
+        item = data.get(key).get("value")
+
+        if isinstance(item, dict):
+            return item
+
+        if item.isdigit():
+            return int(item)
+        if item.isnumeric():
+            return float(item)
+        
+        if item.lower() == "true":
+            return True
+        if item.lower() == "false":
+            return False
+        return item
+
+    @classmethod
+    def _extract_suffixed(cls, data: dict[str, dict], key: SummaryKeys) -> SummarySuffixed:
+        try:
+            return SummarySuffixed(
+                total=cls._get_value(data, key).get("amount", 0),
+                securities=cls._get_value(data, f"{key}-s").get("amount", 0) if f"{key}-s" in data else None,
+                commodities=cls._get_value(data, f"{key}-c").get("amount", 0) if f"{key}-c" in data else None,
+                crypto=cls._get_value(data, f"{key}-p").get("amount", 0) if f"{key}-p" in data else None,
+            )
+        except Exception as e:
+            logging.exception(e)
+            return SummarySuffixed(
+                total=0,
+                securities=0,
+                commodities=0,
+                crypto=0,
+            )
+
+
+
+class REST(DataExtractor):
     """Allows to send REST API requests to Interactive Brokers Client Portal Web API.
 
     :param url: Gateway session link, defaults to "https://localhost:5000"
@@ -262,25 +305,102 @@ class REST:
         instrument = StockInstrument(**instruments_data[symbol][0])
         return instrument.contracts[0].conid
 
-    async def get_portfolio(self, account_id=None) -> PortfolioResponse:
+    async def get_portfolio(self, account_id=None) -> Position:
         """Returns portfolio of the selected account
 
         :param account_id: Account ID, uses default if not provided
         :type account_id: str, optional
         :return: Portfolio
-        :rtype: PortfolioResponse
         """
         aid = self._require_account_id(account_id)
-        response = await self.client.get(f"{self.url}/portfolio/{aid}/positions/0")
+        await self.get_accounts()
+        await asyncio.sleep(0.3)
 
-        positions = [
-            PortfolioPosition(
-                contract_desc=item["contractDesc"], position=item["position"]
+        page_num = 0
+        items: list[PortfolioPosition] = []
+
+        while True:
+            response = await self.client.get(f"{self.url}/portfolio/{aid}/positions/{page_num}")
+            data: list[dict[str, Any]] = response.json()
+            length = len(data)
+
+            if length == 0:
+                break
+
+            items.extend(
+                [
+                    PortfolioPosition(**item)
+                    for item in data
+                    if self._account_id is None or item["acctId"] == self._account_id
+                ]
             )
-            for item in response.json()
-        ]
-        balance = await self.get_cash_balance(account_id=aid)
-        return PortfolioResponse(positions=positions, balance=balance)
+
+            if length < 100:
+                break
+
+            page_num += 1
+
+        return items
+
+    async def get_portfolio_summary(self, account_id=None) -> Summary:
+        aid = self._require_account_id(account_id)
+
+        response = await self.client.get(
+            f"{self.url}/portfolio/{aid}/summary"
+        )
+
+        data: dict[SummaryKeys, dict] = response.json()
+
+        return Summary(
+            # --- Identity ---
+            account_code=self._get_value(data, "accountcode"),
+            account_type=self._get_value(data, "accounttype"),
+            is_account_ready=self._get_value(data, "accountready"),
+
+            # --- Core ---
+            net_liquidation=self._extract_suffixed(data, "netliquidation"),
+            equity_with_loan_value=self._extract_suffixed(data, "equitywithloanvalue"),
+            previous_day_equity_with_loan_value=self._extract_suffixed(
+                data, "previousdayequitywithloanvalue"
+            ),
+
+            # --- Cash ---
+            total_cash_value=self._extract_suffixed(data, "totalcashvalue"),
+            accrued_cash=self._extract_suffixed(data, "accruedcash"),
+            accrued_dividend=self._extract_suffixed(data, "accrueddividend"),
+
+            # --- Buying power ---
+            buying_power=self._extract_suffixed(data, "buyingpower"),
+            available_funds=self._extract_suffixed(data, "availablefunds"),
+            excess_liquidity=self._extract_suffixed(data, "excessliquidity"),
+            cushion=_parse_float(_get_value(data, "cushion")),
+
+            # --- Margin ---
+            initial_margin_requirement=self._extract_suffixed(data, "initmarginreq"),
+            maintenance_margin_requirement=self._extract_suffixed(data, "maintmarginreq"),
+
+            # --- Exposure ---
+            gross_position_value=self._extract_suffixed(data, "grosspositionvalue"),
+
+            # --- Reg-T ---
+            sma=self._extract_suffixed(data, "sma"),
+            regt_equity=self._extract_suffixed(data, "regtequity"),
+            regt_margin=self._extract_suffixed(data, "regtmargin"),
+
+            # --- Risk ---
+            day_trades_remaining=_parse_int(_get_value(data, "daytradesremaining")),
+            leverage=_parse_float(_get_value(data, "leverage-s")),
+
+            # --- Lookahead ---
+            lookahead_available_funds=self._extract_suffixed(data, "lookaheadavailablefunds"),
+            lookahead_excess_liquidity=self._extract_suffixed(data, "lookaheadexcessliquidity"),
+            lookahead_initial_margin_requirement=self._extract_suffixed(
+                data, "lookaheadinitmarginreq"
+            ),
+            lookahead_maintenance_margin_requirement=self._extract_suffixed(
+                data, "lookaheadmaintmarginreq"
+            ),
+        )
 
     async def reply_yes(
         self, message_id: str
