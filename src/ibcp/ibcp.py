@@ -59,7 +59,8 @@ class DataExtractor:
             return False
         return item
 
-    def _get_amount(self, data: dict[SummaryKeys, Any], key: SummaryKeys) -> Union[int, float, None]:
+    @staticmethod
+    def _get_amount(data: dict[SummaryKeys, Any], key: SummaryKeys) -> Union[int, float, None]:
         amount = data.get(key)
         if isinstance(amount, dict):
             return amount.get("amount", 0)
