@@ -21,6 +21,7 @@ from ibcp.models import (
     OrderReplyItem,
     OrderStatus,
     Position,
+    Ledger,
     Summary,
     SummaryKeys,
     SummarySuffixed,
@@ -416,6 +417,19 @@ class REST(DataExtractor):
                 data, "lookaheadmaintmarginreq"
             ),
         )
+
+    async def get_ledger(self, account_id=None) -> list[Ledger]:
+        """Returns ledger of the selected account
+
+        :param account_id: Account ID, uses default if not provided
+        :type account_id: str, optional
+        :return: list of ledger items
+        :rtype: list[Ledger]
+        """
+        aid = self._require_account_id(account_id)
+        response = await self.client.get(f"{self.url}/portfolio/{aid}/ledger")
+        data: dict[str, dict] = response.json()
+        return [Ledger(**item) for item in data.values()]
 
     async def reply_yes(
         self, message_id: str

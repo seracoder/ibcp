@@ -84,6 +84,11 @@ async def test_get_portfolio(api, account_id):
     result = await api.get_portfolio()
     assert result.acct_id != ""
 
+@pytest.mark.asyncio
+async def test_get_ledgers(api):
+    result = await api.get_ledger()
+    assert len(result) > 0
+
 
 @pytest.mark.asyncio
 async def test_get_conid(api):
