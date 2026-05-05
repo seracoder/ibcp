@@ -37,7 +37,13 @@ __all__ = ["REST"]
 class DataExtractor:
     @staticmethod
     def _get_value(data: dict[SummaryKeys, Any], key: SummaryKeys) -> Union[str, int, float, bool, dict, None]:
-        item = data.get(key).get("value")
+        _item = data.get(key)
+        if _item is None:
+            return None
+
+        item = _item.get("value")
+        if item is None:
+            return None
 
         if isinstance(item, dict):
             return item
@@ -53,14 +59,21 @@ class DataExtractor:
             return False
         return item
 
+    def _get_amount(self, data: dict[SummaryKeys, Any], key: SummaryKeys) -> Union[int, float, None]:
+        amount = data.get(key)
+        if isinstance(amount, dict):
+            return amount.get("amount", 0)
+        return None
+
+
     @classmethod
     def _extract_suffixed(cls, data: dict[str, dict], key: SummaryKeys) -> SummarySuffixed:
         try:
             return SummarySuffixed(
-                total=cls._get_value(data, key).get("amount", 0),
-                securities=cls._get_value(data, f"{key}-s").get("amount", 0) if f"{key}-s" in data else None,
-                commodities=cls._get_value(data, f"{key}-c").get("amount", 0) if f"{key}-c" in data else None,
-                crypto=cls._get_value(data, f"{key}-p").get("amount", 0) if f"{key}-p" in data else None,
+                total=cls._get_amount(data, key) or 0,
+                securities=cls._get_amount(data, f"{key}-s"),
+                commodities=cls._get_amount(data, f"{key}-c"),
+                crypto=cls._get_amount(data, f"{key}-p"),
             )
         except Exception as e:
             logging.exception(e)
