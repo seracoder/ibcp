@@ -100,6 +100,5 @@ class Position(PositionBase):
 class Position2(PositionBase):
     description: str = Field(description="Position Symbol")
     sec_type: str = Field("", alias="secType")
-    is_last_to_loq: bool
-    sec_type: str
+    is_last_to_loq: bool = Field(False, alias="isLastToLoq")
     timestamp: int
