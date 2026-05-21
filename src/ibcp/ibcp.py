@@ -21,6 +21,7 @@ from ibcp.models import (
     OrderReplyItem,
     OrderStatus,
     Position,
+    Position2,
     Ledger,
     Summary,
     SummaryKeys,
@@ -322,21 +323,19 @@ class REST(DataExtractor):
         instrument = StockInstrument(**instruments_data[symbol][0])
         return instrument.contracts[0].conid
 
-    async def get_portfolio(self, account_id=None) -> Position:
-        """Returns portfolio of the selected account
+    async def get_positions(self, account_id=None) -> Position:
+        """Returns positions of the selected account
 
         :param account_id: Account ID, uses default if not provided
         :type account_id: str, optional
         :return: Portfolio
         """
         aid = self._require_account_id(account_id)
-        await self.get_accounts()
-        await asyncio.sleep(0.3)
+        await self.client.get(f"{self.url}/portfolio/{aid}/positions/0")
 
-        page_num = 0
-        items: list[PortfolioPosition] = []
+        items: list[Position] = []
 
-        while True:
+        for page_num in range(300):
             response = await self.client.get(f"{self.url}/portfolio/{aid}/positions/{page_num}")
             data: list[dict[str, Any]] = response.json()
             length = len(data)
@@ -344,20 +343,21 @@ class REST(DataExtractor):
             if length == 0:
                 break
 
-            items.extend(
-                [
-                    PortfolioPosition(**item)
-                    for item in data
-                    if self._account_id is None or item["acctId"] == self._account_id
-                ]
-            )
+            items.extend([Position(**item) for item in data])
 
             if length < 100:
                 break
-
-            page_num += 1
+            await asyncio.sleep(0.1)
 
         return items
+
+    async def get_positions2(self, account_id=None) -> Position2:
+        aid = self._require_account_id(account_id)
+        await self.get_accounts()
+        response = await self.client.get(f"{self.url}/portfolio2/{aid}/positions")
+        data: list[dict[str, Any]] = response.json()
+
+        return [Position2(**item) for item in data]
 
     async def get_portfolio_summary(self, account_id=None) -> Summary:
         aid = self._require_account_id(account_id)

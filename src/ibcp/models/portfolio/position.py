@@ -1,6 +1,6 @@
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, AliasChoices
 
 
 class CurrencyValue(BaseModel):
@@ -44,35 +44,42 @@ class DisplayRule(BaseModel):
         populate_by_name = True
 
 
-class Position(BaseModel):
-    # https://www.interactivebrokers.com/campus/ibkr-api-page/cpapi-v1/#positions
-    acct_id: str = Field(..., alias="acctId")
+class PositionBase(BaseModel):
+    position: int = Field(..., alias="position")
     con_id: int = Field(..., alias="conid")
-    contract_desc: str = Field(..., alias="contractDesc")
-    position: float
-    mkt_price: float = Field(0.0, alias="mktPrice")
-    mkt_value: float = Field(0.0, alias="mktValue")
-    currency: str
     avg_cost: float = Field(0.0, alias="avgCost")
     avg_price: float = Field(0.0, alias="avgPrice")
+    currency: str
+    mkt_price: float = Field(0.0, validation_alias=AliasChoices("mktPrice", "marketPrice"))
+    mkt_value: float = Field(0.0, validation_alias=AliasChoices("mktValue", "marketValue"))
     realized_pnl: float = Field(0.0, alias="realizedPnl")
     unrealized_pnl: float = Field(0.0, alias="unrealizedPnl")
+    asset_class: str = Field("", alias="assetClass")
+    sector: str = Field("")
+    group: str = Field("")
+    und_conid: int = Field(0, alias="undConid")
+
+    class Config:
+        extra = "allow"
+        populate_by_name = True
+
+
+class Position(PositionBase):
+    # https://www.interactivebrokers.com/campus/ibkr-api-page/cpapi-v1/#positions
+    acct_id: str = Field(..., alias="acctId")
+    contract_desc: str = Field(..., alias="contractDesc")
     exchs: Optional[str]
     chinese_name: str = Field("", alias="chineseName")
     all_exchanges: str = Field("", alias="allExchanges")
     listing_exchange: str = Field("", alias="listingExchange")
     country_code: str = Field("", alias="countryCode")
     name: str
-    asset_class: str = Field("", alias="assetClass")
     expiry: str | None = None
     last_trading_day: str = Field("", alias="lastTradingDay")
-    group: str = Field("")
     put_or_call: str | None = Field(None, alias="putOrCall")
-    sector: str = Field("")
     sector_group: str = Field("", alias="sectorGroup")
     strike: float = 0.0
     ticker: str
-    und_conid: int = Field(0, alias="undConid")
     model: str = Field("")
     increment_rules: list[IncrementRule] = Field(
         default_factory=list, alias="incrementRules"
@@ -89,6 +96,10 @@ class Position(BaseModel):
     is_event_contract: bool = Field(False, alias="isEventContract")
     page_size: int = Field(0, alias="pageSize")
 
-    class Config:
-        extra = "allow"
-        populate_by_name = True
+
+class Position2(PositionBase):
+    description: str = Field(description="Position Symbol")
+    sec_type: str = Field("", alias="secType")
+    is_last_to_loq: bool
+    sec_type: str
+    timestamp: int

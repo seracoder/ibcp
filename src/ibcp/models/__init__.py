@@ -28,6 +28,7 @@ from .portfolio import (
     IncrementRule,
     NetValueResponse,
     Position,
+    Position2,
     Summary,
     SummaryKeys,
     SummarySuffixed,

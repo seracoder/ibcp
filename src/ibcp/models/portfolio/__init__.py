@@ -6,6 +6,7 @@ from .position import (
     IncrementRule,
     NetValueResponse,
     Position,
+    Position2
 )
 
 from .summary import (
