@@ -75,7 +75,7 @@ class Position(PositionBase):
     country_code: str = Field("", alias="countryCode")
     name: str
     expiry: str | None = None
-    last_trading_day: str = Field("", alias="lastTradingDay")
+    last_trading_day: Optional[str] = Field("", alias="lastTradingDay")
     put_or_call: str | None = Field(None, alias="putOrCall")
     sector_group: str = Field("", alias="sectorGroup")
     strike: float = 0.0
